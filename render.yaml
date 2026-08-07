@@ -1,0 +1,17 @@
+services:
+  - type: web_service
+    name: cian-monitor
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: CLOUDFLARE_WORKER_URL
+        sync: false
+      - key: BOT_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.11"

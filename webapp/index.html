@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CIAN Monitor</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--bg:var(--tg-theme-bg-color,#fff);--text:var(--tg-theme-text-color,#1a1a2e);--hint:var(--tg-theme-hint-color,#8e8e93);--btn:var(--tg-theme-button-color,#2563eb);--btnT:var(--tg-theme-button-text-color,#fff);--sec:var(--tg-theme-secondary-bg-color,#f2f2f7);--accent:#2563eb;--ok:#10b981;--warn:#f59e0b;--danger:#ef4444;--r:12px;--sh:0 2px 12px rgba(0,0,0,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+body{display:flex;flex-direction:column}
+.app{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;top:0;left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;padding:16px;padding-bottom:80px}
+.page.active{display:block}
+.bottom-nav{display:flex;background:var(--bg);border-top:1px solid var(--sec);padding:8px 0 calc(8px + env(safe-area-inset-bottom));position:fixed;bottom:0;left:0;right:0;z-index:100}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;cursor:pointer;opacity:.5;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.nav-item.active{opacity:1}
+.nav-item .icon{font-size:22px}.nav-item .label{font-size:11px;font-weight:500}
+.page-title{font-size:20px;font-weight:700;margin-bottom:16px;padding-top:8px}
+.listing-card{background:var(--sec);border-radius:var(--r);overflow:hidden;margin-bottom:12px;box-shadow:var(--sh);cursor:pointer;transition:transform .15s}
+.listing-card:active{transform:scale(.98)}
+.card-photo{width:100%;height:180px;object-fit:cover;background:#e5e7eb}
+.card-body{padding:12px}
+.card-price{font-size:18px;font-weight:700;color:var(--accent)}
+.card-price-m{font-size:12px;color:var(--hint);margin-top:2px}
+.card-params{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.card-param{font-size:12px;background:var(--bg);padding:3px 8px;border-radius:6px}
+.card-address{font-size:13px;color:var(--hint);margin-top:6px}
+.card-metro{font-size:12px;color:var(--hint);margin-top:3px}
+.card-meta{display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap}
+.card-badge{font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600}
+.badge-active{background:#dcfce7;color:#166534}
+.badge-removed{background:#fef2f2;color:#991b1b}
+.badge-price-up{background:#fef3c7;color:#92400e}
+.badge-price-down{background:#dcfce7;color:#166534}
+.badge-new{background:var(--accent);color:#fff}
+.card-actions{display:flex;gap:8px;margin-top:8px}
+.card-actions button,.detail-actions button{flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-fav{background:var(--warn);color:#fff}.btn-fav.active{background:var(--ok)}
+.btn-open{background:var(--accent);color:var(--btnT)}
+.card-compact{display:flex;gap:12px;background:var(--sec);border-radius:var(--r);overflow:hidden;margin-bottom:10px;box-shadow:var(--sh);cursor:pointer;padding:10px;align-items:center}
+.card-compact .thumb{width:70px;height:70px;border-radius:8px;object-fit:cover;background:#e5e7eb;flex-shrink:0}
+.card-compact .info{flex:1;min-width:0}
+.card-compact .info .price{font-size:15px;font-weight:700;color:var(--accent)}
+.card-compact .info .addr{font-size:12px;color:var(--hint);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-compact .info .meta{font-size:11px;color:var(--hint);margin-top:2px}
+.card-compact .fav-btn{width:36px;height:36px;border-radius:50%;border:none;background:var(--warn);color:#fff;font-size:16px;cursor:pointer;flex-shrink:0}
+.card-compact .fav-btn.active{background:var(--ok)}
+.filter-section{margin-bottom:20px}
+.filter-label{font-size:14px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.filter-chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 14px;border-radius:20px;border:1.5px solid var(--sec);background:var(--bg);font-size:13px;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.chip.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.price-inputs{display:flex;gap:8px;align-items:center}
+.price-inputs input{flex:1;padding:10px 12px;border:1.5px solid var(--sec);border-radius:10px;font-size:14px;background:var(--bg);color:var(--text);outline:none}
+.price-inputs input:focus{border-color:var(--accent)}
+.source-item{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--sec);border-radius:10px;margin-bottom:8px;cursor:pointer}
+.source-item .check{width:22px;height:22px;border-radius:6px;border:2px solid var(--hint);display:flex;align-items:center;justify-content:center;font-size:14px;color:transparent;transition:all .2s}
+.source-item.selected .check{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-search{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;margin-top:12px}
+.btn-search:active{opacity:.8}.btn-search:disabled{opacity:.5;cursor:not-allowed}
+.detail-page{padding:0!important}
+.detail-back{position:fixed;top:12px;left:12px;z-index:50;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:none;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.detail-photos{position:relative;width:100%;height:280px;overflow:hidden;background:#e5e7eb}
+.detail-photos img{width:100%;height:100%;object-fit:cover}
+.detail-photos .dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px}
+.detail-photos .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5)}
+.detail-photos .dot.active{background:#fff}
+.detail-content{padding:16px}
+.detail-price{font-size:24px;font-weight:700;color:var(--accent)}
+.detail-price-m{font-size:14px;color:var(--hint);margin-top:2px}
+.detail-params{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.detail-param{padding:6px 12px;background:var(--sec);border-radius:8px;font-size:13px}
+.detail-address{margin-top:12px;font-size:14px}
+.detail-metro{margin-top:4px;font-size:13px;color:var(--hint)}
+.detail-meta{margin-top:8px;font-size:12px;color:var(--hint)}
+.detail-status{margin-top:8px;font-size:13px;font-weight:600}
+.detail-desc{margin-top:16px;font-size:14px;line-height:1.5;white-space:pre-wrap}
+.detail-price-history{margin-top:12px;padding:10px;background:var(--sec);border-radius:8px}
+.detail-price-history h4{font-size:13px;margin-bottom:6px}
+.detail-price-history .entry{font-size:12px;color:var(--hint);margin-top:3px}
+.detail-actions{display:flex;gap:10px;margin-top:20px;padding-bottom:20px}
+#map{width:100%;height:100%}
+.map-controls{position:absolute;top:12px;left:12px;right:12px;z-index:1000;display:flex;gap:8px}
+.map-btn{padding:8px 16px;border-radius:20px;border:none;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.map-btn.active{background:var(--accent);color:#fff}
+.map-btn:not(.active){background:var(--bg);color:var(--text)}
+.loading{text-align:center;padding:40px;color:var(--hint)}
+.spinner{width:30px;height:30px;border:3px solid var(--sec);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.results-count{font-size:13px;color:var(--hint);margin-bottom:12px}
+.empty-state{text-align:center;padding:60px 20px;color:var(--hint)}
+.empty-state .emoji{font-size:48px;margin-bottom:12px}
+.empty-state .text{font-size:14px}
+.search-bar{display:flex;gap:8px;margin-bottom:12px}
+.search-bar input{flex:1;padding:10px 14px;border:1.5px solid var(--sec);border-radius:10px;font-size:14px;background:var(--bg);color:var(--text);outline:none}
+.search-bar input:focus{border-color:var(--accent)}
+.search-bar button{padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;cursor:pointer}
+.monitor-banner{background:linear-gradient(135deg,#dbeafe,#ede9fe);border-radius:var(--r);padding:14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.monitor-banner .info{font-size:13px}
+.monitor-banner .info strong{display:block;font-size:14px}
+.monitor-banner .toggle{padding:8px 16px;border-radius:20px;border:none;font-size:13px;font-weight:600;cursor:pointer}
+.monitor-banner .toggle.on{background:var(--ok);color:#fff}
+.monitor-banner .toggle.off{background:var(--hint);color:#fff}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SEARCH -->
+  <div class="page active" id="page-search">
+    <div class="page-title">🔍 Поиск</div>
+    <div id="monitor-banner"></div>
+    <div class="filter-section">
+      <div class="filter-label">🌐 Источник</div>
+      <div id="source-chips"></div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">📍 Район</div>
+      <div class="filter-chips" id="district-chips"></div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">🏠 Комнаты</div>
+      <div class="filter-chips" id="room-chips"></div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">💰 Бюджет</div>
+      <div class="filter-chips" id="price-chips"></div>
+      <div class="price-inputs" style="margin-top:10px">
+        <input type="number" id="price-min" placeholder="от" step="1000000">
+        <span style="color:var(--hint)">—</span>
+        <input type="number" id="price-max" placeholder="до" step="1000000">
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">📐 Мин. площадь, м²</div>
+      <div class="filter-chips" id="area-chips"></div>
+    </div>
+    <button class="btn-search" id="btn-search" onclick="doSearch()">🔍 Искать</button>
+  </div>
+
+  <!-- FEED -->
+  <div class="page" id="page-feed">
+    <div class="page-title">📋 Лента</div>
+    <div id="feed-content">
+      <div class="empty-state"><div class="emoji">🔍</div><div class="text">Настройте поиск и нажмите «Искать»</div></div>
+    </div>
+  </div>
+
+  <!-- FAVORITES -->
+  <div class="page" id="page-favorites">
+    <div class="page-title">⭐ Избранное</div>
+    <div class="search-bar">
+      <input type="text" id="fav-search" placeholder="Поиск в избранном..." oninput="filterFavorites()">
+    </div>
+    <div id="fav-count" class="results-count"></div>
+    <div id="fav-content">
+      <div class="empty-state"><div class="emoji">⭐</div><div class="text">Добавляйте квартиры в избранное</div></div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="page" id="page-map" style="padding:0;padding-bottom:80px">
+    <div class="map-controls">
+      <button class="map-btn active" onclick="setMapMode('all')" id="map-btn-all">Все</button>
+      <button class="map-btn" onclick="setMapMode('favorites')" id="map-btn-fav">⭐ Избранные</button>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="page detail-page" id="page-detail">
+    <button class="detail-back" onclick="goBack()">←</button>
+    <div id="detail-content"></div>
+  </div>
+
+  <!-- NAV -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" onclick="showPage('search')"><span class="icon">🔍</span><span class="label">Поиск</span></div>
+    <div class="nav-item" onclick="showPage('feed')"><span class="icon">📋</span><span class="label">Лента</span></div>
+    <div class="nav-item" onclick="showPage('favorites')"><span class="icon">⭐</span><span class="label">Избранное</span></div>
+    <div class="nav-item" onclick="showPage('map')"><span class="icon">🗺</span><span class="label">Карта</span></div>
+  </nav>
+</div>
+
+<script>
+const tg=window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand()}
+const API='';
+let userId=tg?.initDataUnsafe?.user?.id?.toString()||'default';
+let config={},currentSettings={},feedListings=[],favoritesList=[],previousPage='search';
+let map=null,mapMarkers=[],mapMode='all';
+
+// NAV
+function showPage(name){
+  previousPage=document.querySelector('.page.active')?.id?.replace('page-','')||'search';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById(`page-${name}`)?.classList.add('active');
+  const idx={search:0,feed:1,favorites:2,map:3}[name];
+  document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  if(name==='favorites')loadFavorites();
+  if(name==='map')initMap();
+  if(name==='feed')loadFeed();
+}
+function goBack(){showPage(previousPage)}
+
+// INIT
+async function init(){
+  try{
+    const[cf,set]=await Promise.all([
+      fetch(`${API}/api/config`).then(r=>r.json()),
+      fetch(`${API}/api/settings?user_id=${userId}`).then(r=>r.json()),
+    ]);
+    config=cf;currentSettings=set;
+    renderSearchFilters();
+    renderMonitorBanner();
+  }catch(e){console.error('Init:',e)}
+}
+
+function renderMonitorBanner(){
+  const el=document.getElementById('monitor-banner');
+  const active=currentSettings.monitoring_active;
+  el.innerHTML=`<div class="info"><strong>🔄 Авто-мониторинг</strong>Проверка каждые 2 часа</div>
+    <button class="toggle ${active?'on':'off'}" onclick="toggleMonitor()">${active?'Вкл':'Выкл'}</button>`;
+}
+
+async function toggleMonitor(){
+  currentSettings.monitoring_active=!currentSettings.monitoring_active;
+  await fetch(`${API}/api/settings`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({user_id:userId,...currentSettings}),
+  });
+  renderMonitorBanner();
+  if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light');
+}
+
+function renderSearchFilters(){
+  // Sources
+  document.getElementById('source-chips').innerHTML=(config.sources||[]).map(s=>
+    `<div class="source-item selected" onclick="this.classList.toggle('selected')"><div class="check">✓</div><span>${s.icon} ${s.name}</span></div>`
+  ).join('');
+  // Districts
+  const dn=Object.keys(config.districts||{});
+  document.getElementById('district-chips').innerHTML=dn.map(d=>
+    `<div class="chip ${currentSettings.district===d?'selected':''}" onclick="selectDistrict(this,'${d}')">${d}</div>`
+  ).join('');
+  // Rooms
+  const ar=currentSettings.rooms||[];
+  document.getElementById('room-chips').innerHTML=(config.rooms_options||[]).map(r=>
+    `<div class="chip ${ar.includes(r.value)?'selected':''}" onclick="toggleRoom(this,${r.value})">${r.label}</div>`
+  ).join('');
+  // Price
+  document.getElementById('price-chips').innerHTML=(config.price_presets||[]).map(p=>
+    `<div class="chip" onclick="selectPrice(this,${p.min},${p.max})">${p.label}</div>`
+  ).join('');
+  document.getElementById('price-min').value=currentSettings.price_min||'';
+  document.getElementById('price-max').value=currentSettings.price_max||'';
+  // Area
+  const aa=[0,30,40,50,60],al=['Любая','от 30 м²','от 40 м²','от 50 м²','от 60 м²'];
+  document.getElementById('area-chips').innerHTML=aa.map((a,i)=>
+    `<div class="chip ${currentSettings.area_min===a?'selected':''}" onclick="selectArea(this,${a})">${al[i]}</div>`
+  ).join('');
+}
+
+function selectDistrict(el,n){document.querySelectorAll('#district-chips .chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');currentSettings.district=n}
+function toggleRoom(el,v){el.classList.toggle('selected');currentSettings.rooms=Array.from(document.querySelectorAll('#room-chips .chip.selected')).map(e=>{const o=(config.rooms_options||[]).find(r=>r.label===e.textContent.trim());return o?o.value:0})}
+function selectPrice(el,mn,mx){document.querySelectorAll('#price-chips .chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');currentSettings.price_min=mn;currentSettings.price_max=mx;document.getElementById('price-min').value=mn||'';document.getElementById('price-max').value=mx||''}
+function selectArea(el,v){document.querySelectorAll('#area-chips .chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');currentSettings.area_min=v}
+
+// SEARCH
+async function doSearch(){
+  const pM=parseInt(document.getElementById('price-min').value)||0;
+  const px=parseInt(document.getElementById('price-max').value)||0;
+  if(pM||px){currentSettings.price_min=pM;currentSettings.price_max=px}
+  await fetch(`${API}/api/settings`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,...currentSettings})});
+  const btn=document.getElementById('btn-search');btn.disabled=true;btn.textContent='⏳ Ищу...';
+  try{
+    const r=await fetch(`${API}/api/search`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,settings:currentSettings})});
+    const d=await r.json();feedListings=d.listings||[];
+    if(tg?.HapticFeedback)tg.HapticFeedback.notificationOccurred('success');
+    showPage('feed');
+  }catch(e){if(tg?.HapticFeedback)tg.HapticFeedback.notificationOccurred('error');alert('Ошибка поиска')}
+  finally{btn.disabled=false;btn.textContent='🔍 Искать'}
+}
+
+// FEED
+async function loadFeed(){
+  if(feedListings.length){renderFeed(feedListings);return}
+  try{const r=await fetch(`${API}/api/feed?user_id=${userId}`);const d=await r.json();feedListings=d.listings||[];renderFeed(feedListings)}catch(e){console.error(e)}
+}
+
+function renderFeed(ls){
+  const el=document.getElementById('feed-content');
+  if(!ls.length){el.innerHTML='<div class="empty-state"><div class="emoji">🔍</div><div class="text">Нет объявлений</div></div>';return}
+  el.innerHTML=`<div class="results-count">${ls.length} объявлений</div>`+ls.map(renderCard).join('');
+}
+
+function renderCard(l){
+  const photo=l.photos?.[0]||'';
+  const rn=l.rooms===0?'Студия':l.rooms!=='?'?`${l.rooms}-комн.`:'';
+  const fc=l.is_favorite?'active':'';
+  const fi=l.is_favorite?'✅':'⭐';
+
+  // Badges
+  let badges='';
+  if(l.active===false) badges+='<span class="card-badge badge-removed">🔴 Снято</span>';
+  else badges+='<span class="card-badge badge-active">🟢 Активно</span>';
+  if(l.price_changed){
+    const dir=l.price_num>(l.old_price||0)?'📈':'📉';
+    badges+=`<span class="card-badge badge-price-up">${dir} Цена изменилась</span>`;
+  }
+
+  return`<div class="listing-card" onclick="showDetail('${l.id}')">
+    ${photo?`<img class="card-photo" src="${photo}" alt="" loading="lazy">`:''}
+    <div class="card-body">
+      <div class="card-price">${l.price}</div>
+      ${l.price_per_m?`<div class="card-price-m">${l.price_per_m}</div>`:''}
+      <div class="card-meta">${badges}</div>
+      <div class="card-params">
+        ${rn?`<span class="card-param">${rn}</span>`:''}
+        ${l.area?`<span class="card-param">${l.area} м²</span>`:''}
+        ${l.floor?`<span class="card-param">эт. ${l.floor}${l.floors_total?'/'+l.floors_total:''}</span>`:''}
+      </div>
+      <div class="card-address">📍 ${l.address}</div>
+      ${l.metro?`<div class="card-metro">${l.metro}</div>`:''}
+      <div class="card-actions">
+        <button class="btn-fav ${fc}" onclick="event.stopPropagation();toggleFav('${l.id}',this)">${fi} Избранное</button>
+        <button class="btn-open" onclick="event.stopPropagation();window.open('${l.link}','_blank')">Открыть ↗</button>
+      </div>
+    </div></div>`;
+}
+
+// DETAIL
+function findListing(id){return feedListings.find(l=>l.id===id)||favoritesList.find(l=>l.id===id)||null}
+
+function showDetail(id){
+  const l=findListing(id);if(!l)return;
+  const el=document.getElementById('detail-content');
+  const photos=l.photos||[];
+  const rn=l.rooms===0?'Студия':l.rooms!=='?'?`${l.rooms}-комн.`:'';
+  const fc=l.is_favorite?'active':'';
+  const ft=l.is_favorite?'✅ В избранном':'⭐ В избранное';
+
+  let statusHtml='';
+  if(l.active===false) statusHtml='<div class="detail-status">🔴 Снято с продажи</div>';
+  else statusHtml='<div class="detail-status">🟢 Активно</div>';
+
+  let priceHistoryHtml='';
+  if(l.price_changed){
+    const old=l.old_price||0;
+    const dir=l.price_num>old?'📈':'📉';
+    priceHistoryHtml=`<div class="detail-price-history">
+      <h4>${dir} Изменение цены</h4>
+      <div class="entry">Было: ${formatPrice(old)} → Стало: ${l.price}</div>
+      ${l.price_changed_at?`<div class="entry">📅 ${new Date(l.price_changed_at*1000).toLocaleDateString('ru-RU')}</div>`:''}
+    </div>`;
+  }
+
+  el.innerHTML=`
+    <div class="detail-photos" id="detail-photos">
+      ${photos.length?photos.map((p,i)=>`<img src="${p}" alt="" style="display:${i===0?'block':'none'}" data-idx="${i}">`).join(''):'<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999">Нет фото</div>'}
+      ${photos.length>1?`<div class="dots">${photos.map((_,i)=>`<div class="dot ${i===0?'active':''}"></div>`).join('')}</div>`:''}
+    </div>
+    <div class="detail-content">
+      <div class="detail-price">${l.price}</div>
+      ${l.price_per_m?`<div class="detail-price-m">${l.price_per_m}</div>`:''}
+      ${priceHistoryHtml}
+      <div class="detail-params">
+        ${rn?`<span class="detail-param">${rn}</span>`:''}
+        ${l.area?`<span class="detail-param">${l.area} м²</span>`:''}
+        ${l.floor?`<span class="detail-param">Этаж ${l.floor}${l.floors_total?'/'+l.floors_total:''}</span>`:''}
+      </div>
+      <div class="detail-address">📍 ${l.address}</div>
+      ${l.metro?`<div class="detail-metro">${l.metro}</div>`:''}
+      ${statusHtml}
+      <div class="detail-meta">
+        ${l.date?`📅 ${l.date} · `:''}🌐 ${l.source==='cian'?'CIAN':l.source}
+      </div>
+      ${l.description?`<div class="detail-desc">${l.description}</div>`:''}
+      <div class="detail-actions">
+        <button class="btn-fav ${fc}" onclick="toggleFavDetail('${l.id}',this)">${ft}</button>
+        <button class="btn-open" onclick="window.open('${l.link}','_blank')">Открыть на CIAN ↗</button>
+      </div>
+    </div>`;
+  showPage('detail');
+
+  if(photos.length>1){
+    let cur=0;const c=document.getElementById('detail-photos');let sx=0;
+    c.addEventListener('touchstart',e=>sx=e.touches[0].clientX);
+    c.addEventListener('touchend',e=>{const d=sx-e.changedTouches[0].clientX;if(Math.abs(d)>50){if(d>0&&cur<photos.length-1)cur++;if(d<0&&cur>0)cur--;c.querySelectorAll('img').forEach((img,i)=>img.style.display=i===cur?'block':'none');c.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i===cur))}});
+  }
+}
+
+function formatPrice(n){return n?`${n.toLocaleString('ru-RU')} ₽`:'—'}
+
+// FAVORITES
+async function toggleFav(id,btnEl){
+  const l=findListing(id);if(!l)return;
+  try{
+    if(l.is_favorite){
+      await fetch(`${API}/api/favorites/remove`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,listing_id:id})});
+      l.is_favorite=false;if(btnEl){btnEl.classList.remove('active');btnEl.textContent='⭐ Избранное'}
+    }else{
+      await fetch(`${API}/api/favorites/add`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,listing:l})});
+      l.is_favorite=true;if(btnEl){btnEl.classList.add('active');btnEl.textContent='✅ В избранном'}
+    }
+    if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light');
+  }catch(e){console.error(e)}
+}
+function toggleFavDetail(id,btnEl){const l=findListing(id);if(!l)return;const was=l.is_favorite;toggleFav(id,btnEl);btnEl.textContent=was?'⭐ В избранное':'✅ В избранном'}
+
+async function loadFavorites(){
+  try{const r=await fetch(`${API}/api/favorites?user_id=${userId}`);const d=await r.json();favoritesList=d.favorites||[];renderFavorites(favoritesList)}catch(e){console.error(e)}
+}
+
+function renderFavorites(fs){
+  const el=document.getElementById('fav-content');
+  document.getElementById('fav-count').textContent=fs.length?`${fs.length} в избранном`:'';
+  if(!fs.length){el.innerHTML='<div class="empty-state"><div class="emoji">⭐</div><div class="text">Добавляйте квартиры в избранное</div></div>';return}
+  el.innerHTML=fs.map(l=>{
+    const photo=l.photos?.[0]||'';
+    const rn=l.rooms===0?'Студия':l.rooms!=='?'?`${l.rooms}-комн.`:'';
+    const meta=[rn,l.area?`${l.area} м²`:''].filter(Boolean).join(' · ');
+    const status=l.active===false?'<span class="card-badge badge-removed" style="font-size:10px">Снято</span>':'';
+    return`<div class="card-compact" onclick="showDetail('${l.id}')">
+      ${photo?`<img class="thumb" src="${photo}" alt="" loading="lazy">`:'<div class="thumb"></div>'}
+      <div class="info"><div class="price">${l.price}</div><div class="addr">${l.address}</div><div class="meta">${meta} ${status}</div></div>
+      <button class="fav-btn active" onclick="event.stopPropagation();removeFav('${l.id}',this)">✅</button>
+    </div>`}).join('');
+}
+
+function filterFavorites(){
+  const q=document.getElementById('fav-search').value.toLowerCase();
+  renderFavorites(q?favoritesList.filter(l=>JSON.stringify(l).toLowerCase().includes(q)):favoritesList);
+}
+
+async function removeFav(id,btnEl){
+  try{await fetch(`${API}/api/favorites/remove`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,listing_id:id})});
+    favoritesList=favoritesList.filter(l=>l.id!==id);const fl=feedListings.find(l=>l.id===id);if(fl)fl.is_favorite=false;renderFavorites(favoritesList);
+    if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light');}catch(e){console.error(e)}
+}
+
+// MAP
+function initMap(){if(map){loadMapData();return}map=L.map('map').setView([55.755,37.617],10);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:18}).addTo(map);loadMapData()}
+function setMapMode(m){mapMode=m;document.getElementById('map-btn-all').classList.toggle('active',m==='all');document.getElementById('map-btn-fav').classList.toggle('active',m==='favorites');loadMapData()}
+
+async function loadMapData(){
+  try{const r=await fetch(`${API}/api/map?user_id=${userId}&mode=${mapMode}`);const d=await r.json();renderMapMarkers(d.listings||[])}catch(e){console.error(e)}
+}
+
+function renderMapMarkers(ls){
+  mapMarkers.forEach(m=>map.removeLayer(m));mapMarkers=[];
+  if(!ls.length)return;const bounds=[];
+  ls.forEach(l=>{
+    if(!l.lat||!l.lon)return;
+    const rn=l.rooms===0?'Студия':l.rooms!=='?'?`${l.rooms}-комн.`:'';
+    const meta=[rn,l.area?`${l.area} м²`:''].filter(Boolean).join(' · ');
+    const color=l.is_favorite?'#f59e0b':l.active===false?'#9ca3af':'#2563eb';
+    const icon=L.divIcon({className:'custom-marker',html:`<div style="background:${color};color:#fff;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">${l.price.replace(' ₽','')}</div>`,iconSize:[0,0],iconAnchor:[0,0]});
+    const marker=L.marker([l.lat,l.lon],{icon}).addTo(map);
+    marker.on('click',()=>{L.popup().setLatLng([l.lat,l.lon]).setContent(`<div onclick="showDetail('${l.id}')" style="cursor:pointer;min-width:160px"><div style="font-weight:700;color:#2563eb;font-size:14px">${l.price}</div><div style="font-size:12px;color:#666;margin-top:2px">${l.address}</div><div style="font-size:11px;color:#999;margin-top:2px">${meta}</div></div>`).openOn(map)});
+    mapMarkers.push(marker);bounds.push([l.lat,l.lon]);
+  });
+  if(bounds.length)map.fitBounds(bounds,{padding:[50,50],maxZoom:14});
+}
+
+init();
+</script>
+</body>
+</html>
